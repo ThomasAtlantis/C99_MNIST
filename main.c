@@ -59,7 +59,7 @@ typedef struct { //定义CNN
     Layer * filter1[5];
     Fcnn_layer * fcnn_input;
     Fcnn_layer * fcnn_w;
-    Fcnn_layer * fcnn_outpot;
+    Fcnn_layer * fcnn_output;
 } Network;
 
 Network * Network_() { //权重初始化
@@ -70,7 +70,7 @@ Network * Network_() { //权重初始化
     for (int i = 0; i < 5; i++) CNN->filter1[i] = Layer_();
     CNN->fcnn_input = Fcnn_layer_();
     CNN->fcnn_w = Fcnn_layer_();
-    CNN->fcnn_outpot = Fcnn_layer_();
+    CNN->fcnn_output = Fcnn_layer_();
     return CNN;
 }
 
@@ -229,25 +229,27 @@ Fcnn_layer * Classify_input(Layer * A, Fcnn_layer * B) {
 }
 
 // 全连接层的误差项传递到CNN中
-Layer * pool_input(Layer * A,Fcnn_layer * B)
-{
-    int x=1;
-    for(int i=0;i<A->L;i++)
-        for(int j=0;j<A->W;j++)
-            for(int k=0;k<A->H;k++)
-                A->delta[i][j][k]=B->delta[x++];
+Layer * pool_input(Layer * A, Fcnn_layer * B) {
+    // 这里又是一个reshape操作，把fcnn_input层的参数reshape回pool_layer1的维度
+    int x = 1;
+    for (int i = 0; i < A->L; ++ i)
+        for (int j = 0; j < A->W; ++ j)
+            for (int k = 0; k < A->H; ++ k)
+                A->delta[i][j][k] = B->delta[x ++];
     return A;
 }
 // 当前层为池化层的敏感项传递
-Layer * pool_delta(Layer * A,Layer * B)
-{
-    for(int k=0;k<A->H;k++)
-        for(int i=0;i<A->L;i+=2)
-            for(int j=0;j<A->W;j+=2)
-            {
-                if(fabs(A->m[i][j][k]-B->m[i/2][j/2][k])<0.01) A->delta[i][j][k]=B->delta[i/2][j/2][k];
-                else A->delta[i][j][k]=0;
+Layer * pool_delta(Layer * A, Layer * B) {
+    for (int k = 0; k < A->H; ++ k) {
+        for (int i = 0; i < A->L; i += 2) {
+            for (int j = 0; j < A->W; j += 2) {
+                // 如果输入输出之差的绝对值小于0.01，认为该位置时max，传递delta；否则delta为0，不更新参数
+                if (fabs(A->m[i][j][k] - B->m[i / 2][j / 2][k]) < 0.01)
+                    A->delta[i][j][k] = B->delta[i / 2][j / 2][k];
+                else A->delta[i][j][k] = 0;
             }
+        }
+    }
     return A;
 }
 /**
@@ -289,36 +291,42 @@ Fcnn_layer * fcnn_Mul(Fcnn_layer * A, Fcnn_layer * B, Fcnn_layer * C) {
 _type sigmod(_type x) {
     return 1.0 / (1.0 + exp(-x));
 }
+
 // 矩阵求和，此处用于敏感项求和
-_type sum(Layer * A)
-{
-    _type a=0;
-    for(int i=0;i<A->L;i++)
-        for(int j=0;j<A->W;j++)
-            for(int k=0;k<A->H;k++)
-                a+=A->delta[i][j][k];
+// 注意卷积的偏置是对于每个卷积核而言的
+// 5个卷积核，那么偏置就是长度为5的向量
+_type sum(Layer * A) {
+    _type a = 0;
+    for (int i = 0; i < A->L; ++ i)
+        for (int j = 0; j < A->W; ++ j)
+            for (int k = 0; k < A->H; ++ k)
+                a += A->delta[i][j][k];
     return a;
 }
-_type sum1(Layer * A,Layer * B,int x,int y)
-{
-    _type a=0;
-    for(int i=0;i<A->L;i++)
-        for(int j=0;j<A->W;j++)
-            for(int k=0;k<A->H;k++)
-                a+=A->delta[i][j][k]*B->m[i+x][j+y][k];
+
+// 其实这里就是B->m * A->delta卷积的结果
+_type sum1(Layer * A, Layer * B, int x, int y) {
+    _type a = 0;
+    for (int i = 0; i < A->L; ++ i)
+        for (int j = 0; j < A->W; ++ j)
+            for (int k = 0; k < A->H; ++ k)
+                a += A->delta[i][j][k] * B->m[i + x][j + y][k];
     return a;
 }
 
 // filter更新
-Layer * Update(Layer * A,Layer * B,Layer * C)
-{
-    for(int i=0;i<A->L;i++)
-        for(int j=0;j<A->W;j++)
-            for(int k=0;k<A->H;k++)
-            {
-                A->m[i][j][k]-=alpha*sum1(A,B,i,j);
-                C->b[i][j][k]-=alpha*sum(A);
+// TODO: 这里的sum(C)函数明显欠优化
+Layer * Update(Layer * A, Layer * B, Layer * C) {
+    for (int i = 0; i < A->L; ++ i) {
+        for (int j = 0; j < A->W; ++ j) {
+            for (int k = 0; k < A->H; ++ k) {
+//                A->m[i][j][k] -= alpha * sum1(A, B, i, j);
+                A->m[i][j][k] -= alpha * sum1(C, B, i, j);
+//                C->b[i][j][k] -= alpha * sum(A);
+                C->b[i][j][k] -= alpha * sum(C);
             }
+        }
+    }
     return A;
 }
 // ReLU函数
@@ -352,13 +360,13 @@ void forward_propagation(int num, int flag) {
     //CNN->pool_layer2=maxpooling(CNN->conv_layer2,CNN->pool_layer2);
     CNN->fcnn_input = Classify_input(CNN->pool_layer1, CNN->fcnn_input);
     //for(int i=0;i<CNN->fcnn_input->length;i++) printf("%.5f ",CNN->fcnn_input->m[i]);
-    CNN->fcnn_outpot = fcnn_Mul(CNN->fcnn_input, CNN->fcnn_w, CNN->fcnn_outpot);
-    CNN->fcnn_outpot = softmax(CNN->fcnn_outpot);
+    CNN->fcnn_output = fcnn_Mul(CNN->fcnn_input, CNN->fcnn_w, CNN->fcnn_output);
+    CNN->fcnn_output = softmax(CNN->fcnn_output);
     // 这个delta原来算的是预测分布与真实分布之差
     for (int i = 0; i < out; ++ i) {
-        if (i == (int)labels_train.data[num]) CNN->fcnn_outpot->delta[i] = CNN->fcnn_outpot->m[i] - 1.0;
-        else CNN->fcnn_outpot->delta[i] = CNN->fcnn_outpot->m[i];
-        //printf("%.5f ",CNN->fcnn_outpot->m[i]);
+        if (i == (int)labels_train.data[num]) CNN->fcnn_output->delta[i] = CNN->fcnn_output->m[i] - 1.0;
+        else CNN->fcnn_output->delta[i] = CNN->fcnn_output->m[i];
+        //printf("%.5f ",CNN->fcnn_output->m[i]);
     }
     //printf(" %.0f\n",labels[num]);
 }
@@ -371,18 +379,17 @@ void back_propagation() {
     for (int i = 0; i < CNN->fcnn_input->length; ++ i) {
         for (int j = 0; j < out; ++ j) {
             CNN->fcnn_input->delta[i] += CNN->fcnn_input->m[i] * (1.0 - CNN->fcnn_input->m[i])
-                * CNN->fcnn_w->w[j][i] * CNN->fcnn_outpot->delta[j];
+                * CNN->fcnn_w->w[j][i] * CNN->fcnn_output->delta[j];
         }
     }
     for (int i = 0; i < CNN->fcnn_input->length; ++ i) {
         for (int j = 0; j < out; ++ j) {
-            CNN->fcnn_w->w[j][i] -= alpha * CNN->fcnn_outpot->delta[j] * CNN->fcnn_input->m[i];
-            CNN->fcnn_w->b[j] -= alpha * CNN->fcnn_outpot->delta[j];
-            //printf("%.5f ", CNN->fcnn_w->w[j][i]);
+            CNN->fcnn_w->w[j][i] -= alpha * CNN->fcnn_output->delta[j] * CNN->fcnn_input->m[i];
+            CNN->fcnn_w->b[j] -= alpha * CNN->fcnn_output->delta[j];
         }
     }
-    CNN->pool_layer1 = pool_input(CNN->pool_layer1,CNN->fcnn_input);
-    CNN->conv_layer1 = pool_delta(CNN->conv_layer1,CNN->pool_layer1);//pooling误差传递
+    CNN->pool_layer1 = pool_input(CNN->pool_layer1, CNN->fcnn_input);
+    CNN->conv_layer1 = pool_delta(CNN->conv_layer1, CNN->pool_layer1); // pooling误差传递
     //CNN->pool_layer1=conv(CNN->conv_layer1,CNN->filter2,3,CNN->pool_layer1,1);//conv误差传递
     for (int i = 0; i < 5; ++ i)
         CNN->filter1[i] = Update(CNN->filter1[i], CNN->Input_layer, CNN->conv_layer1);
@@ -394,7 +401,7 @@ void train() {
         for(int i = 0; i < train_number; i ++) { // 遍历每一个训练样本
             forward_propagation(i, 0);
             // 交叉熵损失函数，P((int)labels_train.data[i]) = 1, P(其它类别) = 0, 所以只剩下Q(x)
-            err -= log(CNN->fcnn_outpot->m[(int)labels_train.data[i]]);
+            err -= log(CNN->fcnn_output->m[(int)labels_train.data[i]]);
             back_propagation();
         }
         printf("step: %d   loss:%.5f\n", time, 1.0 * err / train_number);//每次记录一遍数据集的平均误差
@@ -420,9 +427,9 @@ int test_out(int t) {
     _type sign=-1;
     for(int i=0;i<out;i++)
     {
-        if(CNN->fcnn_outpot->m[i]>sign)
+        if(CNN->fcnn_output->m[i]>sign)
         {
-            sign=CNN->fcnn_outpot->m[i];
+            sign=CNN->fcnn_output->m[i];
             ans=i;
         }
     }
