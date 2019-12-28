@@ -5,6 +5,9 @@
 #ifndef CNN_NETWORK_H
 #define CNN_NETWORK_H
 
+#include <math.h>
+#include "../include/vector.h"
+
 #define _type double
 
 #define _max(a,b) (((a)>(b))?(a):(b))
@@ -61,7 +64,7 @@ typedef struct {
  * @param l 图片的长/行数
  * @param w 图片的宽/列数
  * @return 卷积层结构
- * m是存值的矩阵，delta是梯度下降的误差敏感项
+ * values是存值的矩阵，deltas是梯度下降的误差敏感项
  */
 CVLayer * Convol2D_(int h, int l, int w) {
     CVLayer * layer = (CVLayer *)malloc(sizeof(CVLayer));
@@ -132,6 +135,20 @@ FCLayer * FCWeight_(int from, int to) {
     layer->values = layer->deltas = NULL;
     layer->L = to; layer->W = from;
     return layer;
+}
+
+void softmax(FCLayer * A) {
+    _type sum = 0.0; _type maxi = -100000000;
+    for (int i = 0; i < A->L; ++ i) {
+        maxi = _max(maxi, A->values[i]);
+    }
+    for (int i = 0; i < A->L; ++ i) {
+        A->values[i] = exp(A->values[i] - maxi);
+        sum += A->values[i];
+    }
+    for (int i = 0; i < A->L; ++ i) {
+        A->values[i] /= sum;
+    }
 }
 
 #endif //CNN_NETWORK_H
