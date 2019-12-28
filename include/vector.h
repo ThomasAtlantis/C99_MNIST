@@ -25,6 +25,7 @@ int constructVector1D(Vector1D * this, int len) {
 
 void destroyVector1D(Vector1D * this) {
     free_p(this->data);
+    free_p(this);
 }
 
 Vector1D Vector1D_() {
@@ -66,6 +67,7 @@ void destroyVector2D(Vector2D * this) {
     for (int i = 0; i < this->rows; ++ i)
         free_p(this->data[i]);
     free_p(this->data);
+    free_p(this);
 }
 
 Vector2D Vector2D_() {

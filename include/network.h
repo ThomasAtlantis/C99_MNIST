@@ -57,16 +57,16 @@ double expDecayLR(Alpha * alpha, int step) {
 
 typedef struct CVLayer {
     int L, W, H;
+    _type bias;
     _type *** values;
-    _type *** bias;
     _type *** deltas;
     void (*destroy)(struct CVLayer *);
 } CVLayer;
 
 void killCVLayer(CVLayer * this) {
     free3D(this->values, this->H, this->L);
-    free3D(this->bias, this->H, this->L);
     free3D(this->deltas, this->H, this->L);
+    free_p(this);
 }
 
 /**
@@ -79,7 +79,7 @@ void killCVLayer(CVLayer * this) {
 CVLayer * Convol2D_(int h, int l, int w) {
     CVLayer * layer = (CVLayer *)malloc(sizeof(CVLayer));
     layer->destroy = killCVLayer;
-    layer->L = l; layer->W = w; layer->H = h; layer->bias = NULL;
+    layer->L = l; layer->W = w; layer->H = h;
     layer->values = (_type ***)malloc(h * sizeof(_type **));
     layer->deltas = (_type ***)malloc(h * sizeof(_type **));
     for (int k = 0; k < h; ++ k) {
@@ -98,16 +98,13 @@ CVLayer * Convol2D_(int h, int l, int w) {
 
 CVLayer * Filter2D_(int h, int l, int w) {
     CVLayer * layer = (CVLayer *)malloc(sizeof(CVLayer));
-    layer->destroy = killCVLayer;
+    layer->destroy = killCVLayer; layer->bias = 0;
     layer->L = l; layer->W = w; layer->H = h; layer->deltas = NULL;
     layer->values = (_type ***)malloc(h * sizeof(_type **));
-    layer->bias = (_type ***)malloc(h * sizeof(_type **));
     for (int k = 0; k < h; ++ k) {
         layer->values[k] = (_type **) malloc(l * sizeof(_type *));
-        layer->bias[k] = (_type **) malloc(l * sizeof(_type *));
         for (int i = 0; i < l; ++ i) {
             layer->values[k][i] = (_type *) malloc(w * sizeof(_type));
-            layer->bias[k][i] = (_type *) malloc(w * sizeof(_type));
             for (int j = 0; j < w; ++ j) {
                 layer->values[k][i][j] = 0.01 * (rand() % 100);
             }
@@ -131,13 +128,14 @@ void killFCLayer(FCLayer * this) {
     free1D(this->bias);
     free1D(this->values);
     free1D(this->deltas);
+    free_p(this);
 }
 
 FCLayer * FCLayer_(int length) {
     FCLayer * layer = (FCLayer *)malloc(sizeof(FCLayer));
     layer->destroy = killFCLayer;
-    layer->values = (_type *)malloc(sizeof(length));
-    layer->deltas = (_type *)malloc(sizeof(length));
+    layer->values = (_type *)malloc(length * sizeof(_type));
+    layer->deltas = (_type *)malloc(length * sizeof(_type));
     layer->L = length; layer->W = 1;
     layer->weights = NULL; layer->bias = NULL;
     return layer;

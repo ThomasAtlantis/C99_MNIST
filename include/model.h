@@ -10,8 +10,8 @@
 #include <math.h>
 #include "../include/network.h"
 
-const int filter_num = 5; // 卷积层卷积核数
-const int class_num = 10; // 分类类别数
+#define filter_num 5
+#define class_num 10
 
 // 定义Network结构
 typedef struct Network {
@@ -82,7 +82,7 @@ void conv(CVLayer * input, CVLayer * filter[], CVLayer * conv) {
                     for (int a = 0; a < filter[0]->L; ++ a)
                         for (int b = 0; b < filter[0]->W; ++ b)
                             conv->values[p][i][j] += input->values[k][i + a][j + b] * filter[p]->values[k][a][b];
-                conv->values[p][i][j] = ConvActivate(conv->values[p][i][j] + conv->bias[p][i][j]);
+                conv->values[p][i][j] = ConvActivate(conv->values[p][i][j] + filter[p]->bias);
             }
         }
     }
@@ -179,7 +179,7 @@ _type convMatrix(CVLayer * input, CVLayer * conv, int x, int y, int index) {
     _type a = 0;
     for (int i = 0; i < conv->L; ++ i)
         for (int j = 0; j < conv->W; ++ j)
-            a += conv->deltas[index][i][j] * input->values[index][i + x][j + y];
+            a += conv->deltas[index][i][j] * input->values[0][i + x][j + y];
     return a;
 }
 
@@ -196,7 +196,7 @@ void UpdateFilter(int index, CVLayer * filter, CVLayer * input, CVLayer * conv, 
         for (int i = 0; i < filter->L; ++ i) {
             for (int j = 0; j < filter->W; ++ j) {
                 filter->values[k][i][j] -= alpha * convMatrix(input, conv, i, j, index);
-                conv->bias[k][i][j] -= alpha * sum;
+                filter->bias -= alpha * sum;
             }
         }
     }
