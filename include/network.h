@@ -5,10 +5,12 @@
 #ifndef CNN_NETWORK_H
 #define CNN_NETWORK_H
 
+#include <stdio.h>
+#include <stdlib.h>
 #include <math.h>
 #include "../include/vector.h"
-
-#define _type double
+#include "../include/memtool.h"
+#include "../include/mytype.h"
 
 #define _max(a,b) (((a)>(b))?(a):(b))
 #define _min(a,b) (((a)>(b))?(b):(a))
@@ -53,12 +55,20 @@ double expDecayLR(Alpha * alpha, int step) {
     return alpha->para_1 * exp(alpha->para_2 * step);
 }
 
-typedef struct {
+typedef struct CVLayer {
     int L, W, H;
     _type *** values;
     _type *** bias;
     _type *** deltas;
+    void (*destroy)(struct CVLayer *);
 } CVLayer;
+
+void killCVLayer(CVLayer * this) {
+    free3D(this->values, this->H, this->L);
+    free3D(this->bias, this->H, this->L);
+    free3D(this->deltas, this->H, this->L);
+}
+
 /**
  * @param h 图片的通道数
  * @param l 图片的长/行数
@@ -68,6 +78,7 @@ typedef struct {
  */
 CVLayer * Convol2D_(int h, int l, int w) {
     CVLayer * layer = (CVLayer *)malloc(sizeof(CVLayer));
+    layer->destroy = killCVLayer;
     layer->L = l; layer->W = w; layer->H = h; layer->bias = NULL;
     layer->values = (_type ***)malloc(h * sizeof(_type **));
     layer->deltas = (_type ***)malloc(h * sizeof(_type **));
@@ -87,6 +98,7 @@ CVLayer * Convol2D_(int h, int l, int w) {
 
 CVLayer * Filter2D_(int h, int l, int w) {
     CVLayer * layer = (CVLayer *)malloc(sizeof(CVLayer));
+    layer->destroy = killCVLayer;
     layer->L = l; layer->W = w; layer->H = h; layer->deltas = NULL;
     layer->values = (_type ***)malloc(h * sizeof(_type **));
     layer->bias = (_type ***)malloc(h * sizeof(_type **));
@@ -105,16 +117,25 @@ CVLayer * Filter2D_(int h, int l, int w) {
 }
 
 // 全连接网络层
-typedef struct {
+typedef struct FCLayer {
     int L, W;
     _type **weights;
     _type * bias;
     _type * values;
     _type * deltas;
+    void (*destroy)(struct FCLayer *);
 } FCLayer;
+
+void killFCLayer(FCLayer * this) {
+    free2D(this->weights, this->L);
+    free1D(this->bias);
+    free1D(this->values);
+    free1D(this->deltas);
+}
 
 FCLayer * FCLayer_(int length) {
     FCLayer * layer = (FCLayer *)malloc(sizeof(FCLayer));
+    layer->destroy = killFCLayer;
     layer->values = (_type *)malloc(sizeof(length));
     layer->deltas = (_type *)malloc(sizeof(length));
     layer->L = length; layer->W = 1;
@@ -124,6 +145,7 @@ FCLayer * FCLayer_(int length) {
 
 FCLayer * FCWeight_(int from, int to) {
     FCLayer * layer = (FCLayer *)malloc(sizeof(FCLayer));
+    layer->destroy = killFCLayer;
     layer->bias = (_type *)malloc(to * sizeof(_type));
     layer->weights = (_type **)malloc(to * sizeof(_type));
     for (int i = 0; i < to; ++ i) {

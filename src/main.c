@@ -4,11 +4,9 @@
 #include "../include/network.h"
 #include "../include/model.h"
 
-#define _type double
-
-const int train_number = 20000; // 训练样本数
-const int test_number = 4000; // 测试样本数
-const int epoch = 200; // 训练轮数
+const int train_num = 20000; // 训练样本数
+const int test_num  = 4000; // 测试样本数
+const int epoch_num = 200; // 训练轮数
 
 Vector1D labels_train;
 Vector2D images_train;
@@ -30,22 +28,22 @@ int predict(Network * CNN, int t) {
 
 double test(Network * CNN) {
     int sum = 0;
-    for (int i = 0; i < test_number; ++ i)
+    for (int i = 0; i < test_num; ++ i)
         if (predict(CNN, i) == (int)labels_test.data[i]) sum ++;
-    return 1.0 * sum / test_number;
+    return 1.0 * sum / test_num;
 }
 
 void train(Network * CNN, Alpha * alpha) {
     printf("Begin Training ...\n");
-    for (int step = 0; step < epoch; ++ step) {
+    for (int step = 0; step < epoch_num; ++ step) {
         _type err = 0;
-        for (int i = 0; i < train_number; i ++) {
+        for (int i = 0; i < train_num; i ++) {
             forePropagation(CNN, i, images_train);
             err -= log(CNN->fc_output->values[(int)labels_train.data[i]]);
             backPropagation(CNN, step, alpha, (int)labels_train.data[i]);
         }
         printf("step: %3d loss: %.5f prec: %.5f\n",
-            step, err / train_number, test(CNN));
+            step, err / train_num, test(CNN));
     }
 }
 
@@ -74,10 +72,10 @@ int main() {
     train(CNN, alpha);
 
     // 释放内存
-    // TODO：这里不全
-    labels_train.destroy(&labels_train);
-    images_train.destroy(&images_train);
-    labels_test.destroy(&labels_test);
-    images_test.destroy(&images_test);
+    delete_p(CNN);
+    delete(labels_train);
+    delete(images_train);
+    delete(labels_test);
+    delete(images_test);
     return 0;
 }

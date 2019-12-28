@@ -5,24 +5,42 @@
 #ifndef CNN_MODEL_H
 #define CNN_MODEL_H
 
+#include <stdio.h>
+#include <stdlib.h>
 #include <math.h>
 #include "../include/network.h"
 
-const int filter_num = 5;
+const int filter_num = 5; // 卷积层卷积核数
 const int class_num = 10; // 分类类别数
 
-typedef struct { //定义CNN
+// 定义Network结构
+typedef struct Network {
     CVLayer * input_layer;
     CVLayer * filter[filter_num];
     CVLayer * conv_layer;
+    #define ConvActivate ReLU
     CVLayer * pool_layer;
+    #define poolActivate sigmoid
     FCLayer * fc_input;
     FCLayer * fc_weight;
     FCLayer * fc_output;
+    void (*destroy)(struct Network *);
 } Network;
+
+void killNetwork(Network * this) {
+    delete_p(this->input_layer);
+    delete_p(this->conv_layer);
+    delete_p(this->pool_layer);
+    delete_p(this->fc_input);
+    delete_p(this->fc_weight);
+    delete_p(this->fc_output);
+    for (int i = 0; i < filter_num; ++ i)
+        delete_p(this->filter[i]);
+}
 
 Network * Network_() {
     Network * CNN = (Network *)malloc(sizeof(Network));
+    CNN->destroy = killNetwork;
     CNN->input_layer = Convol2D_(1, 28, 28);
     CNN->conv_layer = Convol2D_(5, 24, 24);
     CNN->pool_layer = Convol2D_(5, 12, 12);
@@ -33,7 +51,6 @@ Network * Network_() {
     CNN->fc_output = FCLayer_(10);
     return CNN;
 }
-
 
 /**
  * 将从文件中读出的图像reshape到输入层
@@ -65,7 +82,7 @@ void conv(CVLayer * input, CVLayer * filter[], CVLayer * conv) {
                     for (int a = 0; a < filter[0]->L; ++ a)
                         for (int b = 0; b < filter[0]->W; ++ b)
                             conv->values[p][i][j] += input->values[k][i + a][j + b] * filter[p]->values[k][a][b];
-                conv->values[p][i][j] = ReLU(conv->values[p][i][j] + conv->bias[p][i][j]);
+                conv->values[p][i][j] = ConvActivate(conv->values[p][i][j] + conv->bias[p][i][j]);
             }
         }
     }
@@ -97,7 +114,7 @@ void FCInput(CVLayer * pool, FCLayer * fcInput) {
     for (int k = 0; k < pool->H; ++ k)
         for (int i = 0; i < pool->L; ++ i)
             for (int j = 0; j < pool->W; ++ j)
-                fcInput->values[x ++] = sigmoid(pool->values[k][i][j]);
+                fcInput->values[x ++] = poolActivate(pool->values[k][i][j]);
 }
 
 /**

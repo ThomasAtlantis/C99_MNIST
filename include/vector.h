@@ -7,9 +7,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-
-#define _vector2D_t double
-#define _vector1D_t double
+#include "../include/mytype.h"
+#include "../include/memtool.h"
 
 typedef struct vector1D {
     _vector1D_t * data;
@@ -25,7 +24,7 @@ int constructVector1D(Vector1D * this, int len) {
 }
 
 void destroyVector1D(Vector1D * this) {
-    free(this->data);
+    free_p(this->data);
 }
 
 Vector1D Vector1D_() {
@@ -57,17 +56,16 @@ int constructVector2D(Vector2D * this, int r, int c) {
         return 1;
     } else {
         for (int i = 0; i < r; ++ i)
-            if (this->data[i]) free(this->data[i]);
-        free(this->data);
-        this->data = NULL;
+            if (this->data[i]) free_p(this->data[i]);
+        free_p(this->data);
         return 0;
     }
 }
 
 void destroyVector2D(Vector2D * this) {
     for (int i = 0; i < this->rows; ++ i)
-        free(this->data[i]);
-    free(this->data);
+        free_p(this->data[i]);
+    free_p(this->data);
 }
 
 Vector2D Vector2D_() {
