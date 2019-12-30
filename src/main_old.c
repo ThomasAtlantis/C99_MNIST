@@ -4,15 +4,14 @@
 #include <time.h>
 #include "../include/vector.h"
 #include "../include/dataio.h"
-
-#define _type double
+#include "../include/memtool.h"
+#include "../include/network.h"
 
 #define _max(a,b) (((a)>(b))?(a):(b))
 #define _min(a,b) (((a)>(b))?(b):(a))
 
 const int train_num = 100;
-const int test_number = 100;
-const int out = 10;
+const int test_num = 100;
 const int epoch_num = 10;
 
 Vector1D labels_train;
@@ -20,181 +19,65 @@ Vector2D images_train;
 Vector1D labels_test;
 Vector2D images_test;
 
-const double PI = 3.141592654;
+#define filter_num 5
+#define class_num 10
 
-double GaussRand(double mean, double sigma) {
-    static double U, V;
-    static int phase = 0;
-    double Z;
-    if (phase == 0) {
-        U = rand() / (RAND_MAX + 1.0);
-        V = rand() / (RAND_MAX + 1.0);
-        Z = sqrt(-2.0 * log(U)) * sin(2.0 * PI * V);
-    } else {
-        Z = sqrt(-2.0 * log(U)) * cos(2.0 * PI * V);
-    }
-    phase = 1 - phase;
-    return mean + Z * sigma;
-}
-
-typedef struct {
-    double para_1, para_2;
-} Alpha;
-
-Alpha * ExpDecayLR(double start, int epoch, double end) {
-    Alpha * alpha = (Alpha *)malloc(sizeof(Alpha));
-    alpha->para_2 = log(end / start) / epoch;
-    alpha->para_1 = start;
-    return alpha;
-}
-
-double expDecayLR(Alpha * alpha, int step) {
-    return alpha->para_1 * exp(alpha->para_2 * step);
-}
-
-typedef struct CVLayer {
-    int L, W, H;
-    _type bias;
-    _type *** values;
-    _type *** deltas;
-    void (*destroy)(struct CVLayer *);
-} CVLayer;
-
-CVLayer * Convol2D_(int h, int l, int w) {
-    CVLayer * layer = (CVLayer *)malloc(sizeof(CVLayer));
-//    layer->destroy = killCVLayer;
-    layer->bias = 0;
-    layer->L = l; layer->W = w; layer->H = h;
-    layer->values = (_type ***)malloc(h * sizeof(_type **));
-    layer->deltas = (_type ***)malloc(h * sizeof(_type **));
-    for (int k = 0; k < h; ++ k) {
-        layer->values[k] = (_type **) malloc(l * sizeof(_type *));
-        layer->deltas[k] = (_type **) malloc(l * sizeof(_type *));
-        for (int i = 0; i < l; ++ i) {
-            layer->values[k][i] = (_type *) malloc(w * sizeof(_type));
-            layer->deltas[k][i] = (_type *) malloc(w * sizeof(_type));
-            for (int j = 0; j < w; ++ j) {
-                layer->values[k][i][j] = GaussRand(0.5, 0.1);
-            }
-        }
-    }
-    return layer;
-}
-
-
-CVLayer * Filter2D_(int h, int l, int w) {
-    CVLayer * layer = (CVLayer *)malloc(sizeof(CVLayer));
-//    layer->destroy = killCVLayer;
-    layer->bias = 0;
-    layer->L = l; layer->W = w; layer->H = h; layer->deltas = NULL;
-    layer->values = (_type ***)malloc(h * sizeof(_type **));
-    for (int k = 0; k < h; ++ k) {
-        layer->values[k] = (_type **) malloc(l * sizeof(_type *));
-        for (int i = 0; i < l; ++ i) {
-            layer->values[k][i] = (_type *) malloc(w * sizeof(_type));
-            for (int j = 0; j < w; ++ j) {
-                layer->values[k][i][j] = GaussRand(0.5, 0.1);
-            }
-        }
-    }
-    return layer;
-}
-
-
-// 全连接网络层
-typedef struct FCLayer {
-    int L, W;
-    _type **weights;
-    _type * bias;
-    _type * values;
-    _type * deltas;
-    void (*destroy)(struct FCLayer *);
-} FCLayer;
-
-FCLayer * FCLayer_(int length) {
-    FCLayer * layer = (FCLayer *)malloc(sizeof(FCLayer));
-//    layer->destroy = killFCLayer;
-    layer->values = (_type *)malloc(length * sizeof(_type));
-    layer->deltas = (_type *)malloc(length * sizeof(_type));
-    layer->L = length; layer->W = 1;
-    layer->weights = NULL; layer->bias = NULL;
-    return layer;
-}
-
-FCLayer * FCWeight_(int from, int to) {
-    FCLayer * layer = (FCLayer *)malloc(sizeof(FCLayer));
-//    layer->destroy = killFCLayer;
-    layer->bias = (_type *)malloc(to * sizeof(_type));
-    layer->weights = (_type **)malloc(to * sizeof(_type));
-    for (int i = 0; i < to; ++ i) {
-        layer->weights[i] = (_type *)malloc(from * sizeof(_type));
-        layer->bias[i] = 0.01 * (rand() % 100);
-        for (int j = 0; j < from; ++ j) {
-            layer->weights[i][j] = GaussRand(0.5, 0.1);
-        }
-    }
-    layer->values = layer->deltas = NULL;
-    layer->L = to; layer->W = from;
-    return layer;
-}
-
-typedef struct {
-    CVLayer * Input_layer;
-    CVLayer * conv_layer1;
-    CVLayer * pool_layer1;
-    CVLayer * filter1[5];
-    FCLayer * fcnn_input;
-    FCLayer * fcnn_w;
-    FCLayer * fcnn_output;
+typedef struct Network {
+    CVLayer * input_layer;
+    CVLayer * filter[filter_num];
+    CVLayer * conv_layer;
+    #define ConvActivate ReLU
+    CVLayer * pool_layer;
+    #define poolActivate sigmoid
+    FCLayer * fc_input;
+    FCLayer * fc_weight;
+    FCLayer * fc_output;
+    void (*destroy)(struct Network *);
 } Network;
+
+void killNetwork(Network * this) {
+    delete_p(this->input_layer);
+    delete_p(this->conv_layer);
+    delete_p(this->pool_layer);
+    delete_p(this->fc_input);
+    delete_p(this->fc_weight);
+    delete_p(this->fc_output);
+    for (int i = 0; i < filter_num; ++ i)
+        delete_p(this->filter[i]);
+}
 
 Network * Network_() {
     Network * CNN = (Network *)malloc(sizeof(Network));
-    CNN->Input_layer = Convol2D_(1, 28, 28);
-    CNN->conv_layer1 = Convol2D_(5, 24, 24);
-    CNN->pool_layer1 = Convol2D_(5, 12, 12);
+    CNN->destroy = killNetwork;
+    CNN->input_layer = Convol2D_(1, 28, 28);
     for (int i = 0; i < 5; i++)
-        CNN->filter1[i] = Filter2D_(1, 5, 5);
-    CNN->fcnn_input = FCLayer_(720);
-    CNN->fcnn_w = FCWeight_(720, 10);
-    CNN->fcnn_output = FCLayer_(10);
+        CNN->filter[i] = Filter2D_(1, 5, 5);
+    CNN->conv_layer = Convol2D_(5, 24, 24);
+    CNN->pool_layer = Convol2D_(5, 12, 12);
+    CNN->fc_input = FCLayer_(720);
+    CNN->fc_weight = FCWeight_(720, 10);
+    CNN->fc_output = FCLayer_(10);
     return CNN;
 }
 
-_type ReLU(_type x) {
-    return _max(0.0, x);
-}
-
-_type sigmoid(_type x) {
-    return 1.0 / (1.0 + exp(-x));
-}
-
 /**
- * 卷积函数，表示卷积层A与number个filterB相卷积
+ * 卷积函数，表示卷积层A与filter_num个filterB相卷积
  * @param A         输入层
  * @param B         卷积核数组
- * @param number    卷积核的个数
+ * @param filter_num    卷积核的个数
  * @param C         得到的卷积结果
  * @return
  */
-
-void conv(CVLayer * A, CVLayer * B[], int number, CVLayer * C) {
-    for (int i = 0; i < number; ++ i) {
-        B[i]->L = B[i]->W = 5; B[i]->H = 1;
-    }
-    C->L = A->L - B[0]->L + 1;
-    C->W = A->W - B[0]->W + 1;
-    C->H = number;
-
-    for (int num = 0; num < number; ++ num) {
-        for (int i = 0; i < C->L; ++ i) {
-            for (int j = 0; j < C->W; ++ j) {
-                C->values[num][i][j] = 0;
-                for (int k = 0; k < A->H; ++ k)
-                    for (int a = 0; a < B[0]->L; ++ a)
-                        for (int b = 0; b < B[0]->W; ++ b)
-                            C->values[num][i][j] += A->values[k][i + a][j + b] * B[num]->values[k][a][b];
-                C->values[num][i][j] = ReLU(C->values[num][i][j] + B[num]->bias);
+void conv(CVLayer * input, CVLayer * filter[], CVLayer * conv) {
+    for (int p = 0; p < conv->H; ++ p) {
+        for (int i = 0; i < conv->L; ++ i) {
+            for (int j = 0; j < conv->W; ++ j) {
+                conv->values[p][i][j] = 0;
+                for (int k = 0; k < input->H; ++ k)
+                    for (int a = 0; a < filter[0]->L; ++ a)
+                        for (int b = 0; b < filter[0]->W; ++ b)
+                            conv->values[p][i][j] += input->values[k][i + a][j + b] * filter[p]->values[k][a][b];
+                conv->values[p][i][j] = ConvActivate(conv->values[p][i][j] + filter[p]->bias);
             }
         }
     }
@@ -208,7 +91,6 @@ void conv(CVLayer * A, CVLayer * B[], int number, CVLayer * C) {
  * @return
  */
 void convInput(int index, CVLayer * input, Vector2D images) {
-    input->L = input->W = 28; input->H = 1;
     int x = 0;
     for (int k = 0; k < input->H; ++ k)
         for (int i = 0; i < input->L; ++ i)
@@ -279,7 +161,6 @@ void maxPooling(CVLayer * conv_layer, CVLayer * A) {
  * @return
  */
 void FCMultiply(FCLayer * A, FCLayer * B, FCLayer * C) {
-    C->L = out;
     for (int i = 0; i < C->L; ++ i) {
         C->values[i] = 0;
         for (int j = 0; j < A->L; ++ j) {
@@ -317,62 +198,50 @@ void Update(CVLayer * A, CVLayer * B, CVLayer * C, int z, double alpha) {
 }
 
 /**
- * softmax函数
- * @param A
- * @return
- */
-
-void softmax(FCLayer * A) {
-    _type sum = 0.0; _type maxi = -100000000;
-    for (int i = 0; i < out; ++ i) maxi = _max(maxi,A->values[i]);
-    for (int i = 0; i < out; ++ i) sum += exp(A->values[i] - maxi);
-    for (int i = 0; i < out; ++ i) A->values[i] = exp(A->values[i] - maxi) / sum;
-}
-/**
  * 做一次前向输出
  * @param num   样本序号
  * @param flag  0代表训练，1代表测试
  */
 void forePropagation(Network * CNN, int index, Vector2D images) {
-    convInput(index, CNN->Input_layer, images);
-    conv(CNN->Input_layer, CNN->filter1, 5, CNN->conv_layer1);
-    maxPooling(CNN->conv_layer1, CNN->pool_layer1);
-    FCInput(CNN->pool_layer1, CNN->fcnn_input);
-    FCMultiply(CNN->fcnn_input, CNN->fcnn_w, CNN->fcnn_output);
-    softmax(CNN->fcnn_output);
+    convInput(index, CNN->input_layer, images);
+    conv(CNN->input_layer, CNN->filter, CNN->conv_layer);
+    maxPooling(CNN->conv_layer, CNN->pool_layer);
+    FCInput(CNN->pool_layer, CNN->fc_input);
+    FCMultiply(CNN->fc_input, CNN->fc_weight, CNN->fc_output);
+    softmax(CNN->fc_output);
 }
 
 void backPropagation(Network * CNN, int step, Alpha * alpha, int label) {
-    for (int i = 0; i < out; ++ i) {
-        CNN->fcnn_output->deltas[i] = CNN->fcnn_output->values[i];
-        if (i == label) CNN->fcnn_output->deltas[i] -= 1.0;
+    for (int i = 0; i < class_num; ++ i) {
+        CNN->fc_output->deltas[i] = CNN->fc_output->values[i];
+        if (i == label) CNN->fc_output->deltas[i] -= 1.0;
     }
-    for (int i = 0; i < CNN->fcnn_input->L; ++ i) {
-        CNN->fcnn_input->deltas[i] = 0;
-        for (int j = 0; j < out; ++ j) {
-            CNN->fcnn_input->deltas[i] += CNN->fcnn_input->values[i] * (1.0 - CNN->fcnn_input->values[i])
-                * CNN->fcnn_w->weights[j][i] * CNN->fcnn_output->deltas[j];
+    for (int i = 0; i < CNN->fc_input->L; ++ i) {
+        CNN->fc_input->deltas[i] = 0;
+        for (int j = 0; j < class_num; ++ j) {
+            CNN->fc_input->deltas[i] += CNN->fc_input->values[i] * (1.0 - CNN->fc_input->values[i])
+                * CNN->fc_weight->weights[j][i] * CNN->fc_output->deltas[j];
         }
     }
-    for (int i = 0; i < CNN->fcnn_input->L; ++ i) {
-        for (int j = 0; j < out; ++ j) {
-            CNN->fcnn_w->weights[j][i] -= expDecayLR(alpha, step) * CNN->fcnn_output->deltas[j] * CNN->fcnn_input->values[i];
-            CNN->fcnn_w->bias[j] -= expDecayLR(alpha, step) * CNN->fcnn_output->deltas[j];
+    for (int i = 0; i < CNN->fc_input->L; ++ i) {
+        for (int j = 0; j < class_num; ++ j) {
+            CNN->fc_weight->weights[j][i] -= expDecayLR(alpha, step) * CNN->fc_output->deltas[j] * CNN->fc_input->values[i];
+            CNN->fc_weight->bias[j] -= expDecayLR(alpha, step) * CNN->fc_output->deltas[j];
         }
     }
-    pool_input(CNN->pool_layer1, CNN->fcnn_input);
-    pool_delta(CNN->conv_layer1, CNN->pool_layer1);
+    pool_input(CNN->pool_layer, CNN->fc_input);
+    pool_delta(CNN->conv_layer, CNN->pool_layer);
     for (int i = 0; i < 5; ++ i)
-        Update(CNN->filter1[i], CNN->Input_layer, CNN->conv_layer1, i, expDecayLR(alpha, step));
+        Update(CNN->filter[i], CNN->input_layer, CNN->conv_layer, i, expDecayLR(alpha, step));
 }
 
 int predict(Network * CNN, int t) {
     forePropagation(CNN, t, images_test);
     int ans = -1;
     _type sign = -1;
-    for (int i = 0; i < out; ++ i) {
-        if (CNN->fcnn_output->values[i] > sign) {
-            sign = CNN->fcnn_output->values[i];
+    for (int i = 0; i < class_num; ++ i) {
+        if (CNN->fc_output->values[i] > sign) {
+            sign = CNN->fc_output->values[i];
             ans = i;
         }
     }
@@ -381,10 +250,10 @@ int predict(Network * CNN, int t) {
 
 double test(Network * CNN) {
     int sum = 0;
-    for (int i = 0; i < test_number; ++ i) {
+    for (int i = 0; i < test_num; ++ i) {
         if (predict(CNN, i) == (int)labels_test.data[i]) sum ++;
     }
-    return 1.0 * sum / test_number;
+    return 1.0 * sum / test_num;
 }
 
 void train(Network * CNN, Alpha * alpha) {
@@ -393,7 +262,7 @@ void train(Network * CNN, Alpha * alpha) {
         _type err = 0;
         for (int i = 0; i < train_num; i ++) {
             forePropagation(CNN, i, images_train);
-            err -= log(CNN->fcnn_output->values[(int)labels_train.data[i]]);
+            err -= log(CNN->fc_output->values[(int)labels_train.data[i]]);
             backPropagation(CNN, step, alpha, (int)labels_train.data[i]);
         }
         printf("step: %3d loss: %.5f prec: %.5f\n", step, err / train_num, test(CNN));
@@ -422,9 +291,10 @@ int main() {
 
     train(CNN, alpha);
 
-    labels_train.destroy(&labels_train);
-    images_train.destroy(&images_train);
-    labels_test.destroy(&labels_test);
-    images_test.destroy(&images_test);
+    delete_p(CNN);
+    delete(labels_train);
+    delete(images_train);
+    delete(labels_test);
+    delete(images_test);
     return 0;
 }

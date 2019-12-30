@@ -5,6 +5,7 @@
       <w>convol</w>
       <w>convolutional</w>
       <w>dataio</w>
+      <w>memtool</w>
       <w>mnist</w>
       <w>softmax</w>
     </words>
