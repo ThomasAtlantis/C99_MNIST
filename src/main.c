@@ -1,12 +1,18 @@
 #include <stdio.h>
+#include <string.h>
 #include "../include/vector.h"
 #include "../include/dataio.h"
 #include "../include/network.h"
 #include "../include/model.h"
 
-const int train_num = 20000; // 训练样本数
-const int test_num  = 4000; // 测试样本数
-const int epoch_num = 10; // 训练轮数
+#define ParamError do{ \
+    printf("Parameter syntax error!\n"); \
+    return 0; \
+}while(0)
+
+int train_num = 20000; // 训练样本数
+int test_num  = 4000; // 测试样本数
+int epoch_num = 10; // 训练轮数
 
 Vector1D labels_train;
 Vector2D images_train;
@@ -54,7 +60,24 @@ void train(Network * CNN, Alpha * alpha, const char * fileName) {
     printf("Best Score: %f\nmodel saved to model.sav!\n", best_score);
 }
 
-int main() {
+int main(int argc, char * argv[]) {
+
+    for (int i = 1; i < argc; ++ i) {
+        if (!strcmp(argv[i], "--epoch")
+            || !strcmp(argv[i], "--test_num")
+            || !strcmp(argv[i], "--train_num")) {
+            if (i == argc - 1) ParamError;
+            for (int j = 0; j < strlen(argv[i + 1]); ++ j)
+                if (! (argv[i + 1][j] >= '0' && argv[i + 1][j] <= '9')) ParamError;
+            if (!strcmp(argv[i], "--epoch")) epoch_num = atoi(argv[++ i]);
+            else if (!strcmp(argv[i], "--test_num")) test_num = atoi(argv[++ i]);
+            else if (!strcmp(argv[i], "--train_num")) train_num = atoi(argv[++ i]);
+        } else
+        if (!strcmp(argv[i], "other")) {
+            (void)"pass";
+        }
+    }
+
     // 初始化学习率
     Alpha * alpha = ExpDecayLR(0.1, 200, 0.01);
 

@@ -176,7 +176,7 @@ FCLayer * loadFCWeight(FILE * fp) {
     layer->values = layer->deltas = NULL;
     layer->bias = (_type *)malloc(layer->L * sizeof(_type));
     layer->weights = (_type **)malloc(layer->L * sizeof(_type));
-    fread((char *)layer->bias, sizeof(_type), layer->L, fp);
+    _ = fread((char *)layer->bias, sizeof(_type), layer->L, fp);
     for (int i = 0; i < layer->L; ++ i) {
         layer->weights[i] = (_type *)malloc(layer->W * sizeof(_type));
         _ = fread((char *)layer->weights[i], sizeof(_type), layer->W, fp);

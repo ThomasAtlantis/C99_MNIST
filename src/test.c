@@ -31,7 +31,7 @@ int predict(Network * CNN, int t) {
     return ans;
 }
 
-double test(Network * CNN) {
+int test(Network * CNN) {
     int sum = 0;
     for (int i = 0; i < test_num; ++ i) {
         int ans = predict(CNN, i), fact = (int)labels_test.data[i];
@@ -53,7 +53,7 @@ double test(Network * CNN) {
         }
         if (ans == fact) sum ++;
     }
-    return 1.0 * sum / test_num;
+    return sum;
 }
 
 int main(int argc, char * argv[]) {
@@ -65,7 +65,7 @@ int main(int argc, char * argv[]) {
             if (i == argc - 1) ParamError;
             for (int j = 0; j < strlen(argv[i + 1]); ++ j)
                 if (! (argv[i + 1][j] >= '0' && argv[i + 1][j] <= '9')) ParamError;
-            test_num = atoi(argv[i + 1]);
+            test_num = atoi(argv[++ i]);
         }
     }
 
@@ -80,8 +80,9 @@ int main(int argc, char * argv[]) {
     for (int i = 0; i < images_test.rows; ++ i)
         for (int j = 0; j < images_test.cols; ++ j)
             images_test.data[i][j] /= 255.0;
-
-    printf("Precision: %f\n", test(CNN));
+    int sum = test(CNN);
+    printf("Total: %5d, Correct: %5d, Precision: %f\n",
+        test_num, sum, 1.0 * sum / test_num);
 
     // 释放内存
     delete_p(CNN);
