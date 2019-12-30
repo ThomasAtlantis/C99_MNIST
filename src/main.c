@@ -51,6 +51,7 @@ void train(Network * CNN, Alpha * alpha, const char * fileName) {
             best_score = new_score;
         }
     }
+    printf("Best Score: %f\nmodel saved to model.sav!\n", best_score);
 }
 
 int main() {

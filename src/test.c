@@ -3,12 +3,17 @@
 //
 
 #include <stdio.h>
+#include <string.h>
 #include "../include/vector.h"
 #include "../include/dataio.h"
 #include "../include/network.h"
 #include "../include/model.h"
 
-const int test_num  = 4000; // 测试样本数
+#define ParamError do{printf("Parameter syntax error!\n");return 0;}while(0)
+
+const char * chs = ".`\\\":I!>+~[{)|/frnvzYJL0Zwpbh#W%@";
+int test_num  = 4000; // 测试样本数
+int show_flag = 0;
 
 Vector1D labels_test;
 Vector2D images_test;
@@ -28,12 +33,42 @@ int predict(Network * CNN, int t) {
 
 double test(Network * CNN) {
     int sum = 0;
-    for (int i = 0; i < test_num; ++ i)
-        if (predict(CNN, i) == (int)labels_test.data[i]) sum ++;
+    for (int i = 0; i < test_num; ++ i) {
+        int ans = predict(CNN, i), fact = (int)labels_test.data[i];
+        if (show_flag) {
+            printf("Index: %5d\n", i);
+            int x = 0;
+            for (int a = 0; a < 28; ++ a) {
+                for (int b = 0; b < 28; ++ b)
+//                    printf("%3d ", (int)(images_test.data[i][x ++] * 255));
+                    printf("%c ", chs[(int)(images_test.data[i][x ++] * 32)]);
+                printf("\n");
+            }
+            printf("Ground Truth: %2d, Result Predicted: %2d: ", fact, ans);
+            printf(ans == fact ? "CORRECT\n": "  WRONG\n");
+            if (i != test_num - 1) {
+                getchar();
+                for (int j = 0; j < 3999; ++ j) printf("\b");
+            }
+        }
+        if (ans == fact) sum ++;
+    }
     return 1.0 * sum / test_num;
 }
 
-int main() {
+int main(int argc, char * argv[]) {
+
+    for (int i = 1; i < argc; ++ i) {
+        if (strcmp(argv[i], "--show") == 0) {
+            show_flag = 1;
+        } else if (strcmp(argv[i], "--num") == 0) {
+            if (i == argc - 1) ParamError;
+            for (int j = 0; j < strlen(argv[i + 1]); ++ j)
+                if (! (argv[i + 1][j] >= '0' && argv[i + 1][j] <= '9')) ParamError;
+            test_num = atoi(argv[i + 1]);
+        }
+    }
+
     // 初始化CNN存储结构
     Network * CNN = loadNetwork("../model.sav");
 
@@ -46,7 +81,7 @@ int main() {
         for (int j = 0; j < images_test.cols; ++ j)
             images_test.data[i][j] /= 255.0;
 
-    printf("Precision: %f", test(CNN));
+    printf("Precision: %f\n", test(CNN));
 
     // 释放内存
     delete_p(CNN);
