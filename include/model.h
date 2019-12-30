@@ -38,6 +38,31 @@ void killNetwork(Network * this) {
         delete_p(this->filter[i]);
 }
 
+void saveNetwork(Network * CNN, const char *fileName) {
+    FILE * fp = fopen(fileName, "wb");
+    if (!fp) {printf("Failed to write file!\n"); return;}
+    for (int i = 0; i < filter_num; ++ i)
+        saveFilter(fp, CNN->filter[i]);
+    saveFCWeight(fp, CNN->fc_weight);
+    fclose(fp);
+}
+
+Network * loadNetwork(const char * fileName) {
+    FILE * fp = fopen(fileName, "rb");
+    Network * CNN = (Network *)malloc(sizeof(Network));
+    CNN->destroy = killNetwork;
+    CNN->input_layer = Convol2D_(1, 28, 28);
+    for (int i = 0; i < filter_num; ++ i)
+        CNN->filter[i] = loadFilter(fp);
+    CNN->conv_layer = Convol2D_(5, 24, 24);
+    CNN->pool_layer = Convol2D_(5, 12, 12);
+    CNN->fc_input = FCLayer_(720);
+    CNN->fc_weight = loadFCWeight(fp);
+    CNN->fc_output = FCLayer_(10);
+    fclose(fp);
+    return CNN;
+}
+
 Network * Network_() {
     Network * CNN = (Network *)malloc(sizeof(Network));
     CNN->destroy = killNetwork;

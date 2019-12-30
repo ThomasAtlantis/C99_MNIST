@@ -4,8 +4,8 @@
 #include "../include/network.h"
 #include "../include/model.h"
 
-const int train_num = 1000; // 训练样本数
-const int test_num  = 400; // 测试样本数
+const int train_num = 20000; // 训练样本数
+const int test_num  = 4000; // 测试样本数
 const int epoch_num = 10; // 训练轮数
 
 Vector1D labels_train;
@@ -33,7 +33,8 @@ double test(Network * CNN) {
     return 1.0 * sum / test_num;
 }
 
-void train(Network * CNN, Alpha * alpha) {
+void train(Network * CNN, Alpha * alpha, const char * fileName) {
+    double best_score = 0, new_score;
     printf("Begin Training ...\n");
     for (int step = 0; step < epoch_num; ++ step) {
         _type err = 0;
@@ -42,8 +43,13 @@ void train(Network * CNN, Alpha * alpha) {
             err -= log(CNN->fc_output->values[(int)labels_train.data[i]]);
             backPropagation(CNN, step, alpha, (int)labels_train.data[i]);
         }
+        new_score = test(CNN);
         printf("step: %3d loss: %.5f prec: %.5f\n",
-            step, err / train_num, test(CNN));
+            step, err / train_num, new_score);
+        if (new_score > best_score) {
+            saveNetwork(CNN, fileName);
+            best_score = new_score;
+        }
     }
 }
 
@@ -69,7 +75,7 @@ int main() {
             images_test.data[i][j] /= 255.0;
 
     // 训练
-    train(CNN, alpha);
+    train(CNN, alpha, "model.sav");
 
     // 释放内存
     delete_p(CNN);

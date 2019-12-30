@@ -15,6 +15,8 @@
 #define _max(a,b) (((a)>(b))?(a):(b))
 #define _min(a,b) (((a)>(b))?(b):(a))
 
+int _;
+
 // ReLU函数
 _type ReLU(_type x) {
     return _max(0.0, x);
@@ -66,6 +68,34 @@ typedef struct CVLayer {
 void killCVLayer(CVLayer * this) {
     free3D(this->values, this->H, this->L);
     free3D(this->deltas, this->H, this->L);
+}
+
+int saveFilter(FILE * fp, CVLayer * layer) {
+    fwrite((char *)&layer->H, sizeof(int), 1, fp);
+    fwrite((char *)&layer->L, sizeof(int), 1, fp);
+    fwrite((char *)&layer->W, sizeof(int), 1, fp);
+    for (int k = 0; k < layer->H; ++ k)
+        for (int i = 0; i < layer->L; ++ i)
+            fwrite((char *)layer->values[k][i], sizeof(_type), layer->W, fp);
+    return 0;
+}
+
+CVLayer * loadFilter(FILE * fp) {
+    CVLayer * layer = (CVLayer *)malloc(sizeof(CVLayer));
+    layer->destroy = killCVLayer; layer->bias = 0;
+    _ = fread((char *)&layer->H, sizeof(int), 1, fp);
+    _ = fread((char *)&layer->L, sizeof(int), 1, fp);
+    _ = fread((char *)&layer->W, sizeof(int), 1, fp);
+    layer->deltas = NULL;
+    layer->values = (_type ***)malloc(layer->H * sizeof(_type **));
+    for (int k = 0; k < layer->H; ++ k) {
+        layer->values[k] = (_type **) malloc(layer->L * sizeof(_type *));
+        for (int i = 0; i < layer->L; ++ i) {
+            layer->values[k][i] = (_type *) malloc(layer->W * sizeof(_type));
+            _ = fread((char *)layer->values[k][i], sizeof(_type), layer->W, fp);
+        }
+    }
+    return layer;
 }
 
 /**
@@ -127,6 +157,31 @@ void killFCLayer(FCLayer * this) {
     free1D(this->bias);
     free1D(this->values);
     free1D(this->deltas);
+}
+
+int saveFCWeight(FILE * fp, FCLayer * layer) {
+    fwrite((char *)&layer->L, sizeof(int), 1, fp);
+    fwrite((char *)&layer->W, sizeof(int), 1, fp);
+    fwrite((char *)layer->bias, sizeof(_type), layer->L, fp);
+    for (int i = 0; i < layer->L; ++ i)
+        fwrite((char *)layer->weights[i], sizeof(_type), layer->W, fp);
+    return 0;
+}
+
+FCLayer * loadFCWeight(FILE * fp) {
+    FCLayer * layer = (FCLayer *)malloc(sizeof(FCLayer));
+    layer->destroy = killFCLayer;
+    _ = fread((char *)&layer->L, sizeof(int), 1, fp);
+    _ = fread((char *)&layer->W, sizeof(int), 1, fp);
+    layer->values = layer->deltas = NULL;
+    layer->bias = (_type *)malloc(layer->L * sizeof(_type));
+    layer->weights = (_type **)malloc(layer->L * sizeof(_type));
+    fread((char *)layer->bias, sizeof(_type), layer->L, fp);
+    for (int i = 0; i < layer->L; ++ i) {
+        layer->weights[i] = (_type *)malloc(layer->W * sizeof(_type));
+        _ = fread((char *)layer->weights[i], sizeof(_type), layer->W, fp);
+    }
+    return layer;
 }
 
 FCLayer * FCLayer_(int length) {
