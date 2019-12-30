@@ -1,3 +1,119 @@
+#### 使用说明
+下面演示在`linux-Ubuntu`上使用本项目的方法。首先下载并解压，注意将`CMakeLists.txt`与`CMakeLists.bak`交换，其中前者是`Windows10-CLion`上的配置文件。进入`build/`文件夹make一下，可执行文件将生成在`bin/`目录下。
+```shell script
+wget https://github.com/ThomasAtlantis/C99_MNIST/archive/master.zip
+unzip -q master.zip
+cd C99_MNIST-master/build/
+mv ../CMakeLists.txt ../CMakeLists.tmp
+mv ../CMakeLists.bak ../CMakeLists.txt
+cmake .. && make
+```
+结果如下：
+```
+-- The C compiler identification is GNU 7.4.0
+-- Check for working C compiler: /usr/bin/cc
+-- Check for working C compiler: /usr/bin/cc -- works
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /root/workspace/CWork/C99_MNIST-master/build
+Scanning dependencies of target C99_MNIST
+[ 25%] Building C object CMakeFiles/C99_MNIST.dir/src/main.c.o
+[ 50%] Linking C executable ../bin/C99_MNIST
+[ 50%] Built target C99_MNIST
+Scanning dependencies of target C99_MNIST_Test
+[ 75%] Building C object CMakeFiles/C99_MNIST_Test.dir/src/test.c.o
+[100%] Linking C executable ../bin/C99_MNIST_Test
+[100%] Built target C99_MNIST_Test
+```
+使用10000条训练集，1000条测试集，训练10轮：
+```shell script
+../bin/C99_MNIST --train_num 10000 --test_num 1000 --epoch 10
+```
+结果如下：
+```
+Begin Training ...
+step:   0 loss: 59.77995 prec: 0.54600
+step:   1 loss: 30.09183 prec: 0.49800
+step:   2 loss: 23.59912 prec: 0.47800
+step:   3 loss: 20.61523 prec: 0.72800
+step:   4 loss: 18.55815 prec: 0.78800
+step:   5 loss: 17.74338 prec: 0.76200
+step:   6 loss: 16.59249 prec: 0.75600
+step:   7 loss: 15.75097 prec: 0.76500
+step:   8 loss: 15.16759 prec: 0.72200
+step:   9 loss: 14.73609 prec: 0.77800
+Best Score: 0.788000
+model saved to model.sav!
+```
+使用10条测试集测试一下，使用`--show`参数可以开启字符画显示测试过程。
+```shell script
+../bin/C99_MNIST_Test --show --num 10
+```
+结果如下：
+```
+Index:     9
+. . . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . : > n w Z { : . . . . . . . .
+. . . . . . . . . . . I z # % % % % % % p v . . . . . .
+. . . . . . . . . I z W % % h Y r % w % h h | . . . . .
+. . . . . . . . z # % % 0 n ` . . 0 I Z W b % \ . . . .
+. . . . . . ` f % % # r ` . . . . p I + % % % \ . . . .
+. . . . . . ~ W % h ! . . . . . : / h W % @ Y . . . . .
+. . . . . . ~ W % b | n L L J p % h % % % # : . . . . .
+. . . . . . ` J W % @ % % % % % % % % % J " . . . . . .
+. . . . . . . . \ n Z L v z w % % % % v \ . . . . . . .
+. . . . . . . . . . . . . . Y % % W ) . . . . . . . . .
+. . . . . . . . . . . . . / % % % { . . . . . . . . . .
+. . . . . . . . . . . . ) W % % p . . . . . . . . . . .
+. . . . . . . . . . . ! W % % W > . . . . . . . . . . .
+. . . . . . . . . . . r % % W + . . . . . . . . . . . .
+. . . . . . . . . . ` % % % z . . . . . . . . . . . . .
+. . . . . . . . . ` h % % p ` . . . . . . . . . . . . .
+. . . . . . . . . ~ @ % % + . . . . . . . . . . . . . .
+. . . . . . . . . p % % n . . . . . . . . . . . . . . .
+. . . . . . . . . h @ # " . . . . . . . . . . . . . . .
+. . . . . . . . . / @ | . . . . . . . . . . . . . . . .
+. . . . . . . . . . . . . . . . . . . . . . . . . . . .
+Ground Truth:  9, Result Predicted:  9: CORRECT
+Total:    10, Correct:     9, Precision: 0.900000
+```
+#### 工程结构
+```shell script
+C99_MNIST-master/
+├── bin
+│   ├── C99_MNIST # 训练程序
+│   └── C99_MNIST_Test # 测试程序
+├── build # 存储编译链接中间文件
+├── CMakeLists.bak # Linux Ubuntu下的配置文件
+├── CMakeLists.txt # Windows CLion下的配置文件
+├── dataset
+│   ├── t10k-images.idx3-ubyte  # 一万条测试集图片
+│   ├── t10k-labels.idx1-ubyte  # 一万条测试集标签
+│   ├── train-images.idx3-ubyte # 十万条训练集图片
+│   └── train-labels.idx1-ubyte # 十万条训练集标签
+├── include
+│   ├── dataio.h  # 读取数据集
+│   ├── memtool.h # 内存管理工具
+│   ├── model.h   # 模型定义和传播过程
+│   ├── mytype.h  # 模型使用的数据类型
+│   ├── network.h # 提供神经网络常用结构和函数
+│   └── vector.h  # 矩阵数据结构
+├── model.sav  # 固化的模型文件
+├── README.md  # 文档
+└── src
+    ├── main.c # 训练主函数
+    └── test.c # 测试主函数
+```
 #### 原始模型
 这个工程主要参考了博客[CNN实现MNIST手写数字识别（C++）](https://blog.csdn.net/qq_37141382/article/details/88088781) 中给出的基于C++和STL的代码。经过改进后的本文对应的各个版本在我的[GitHub仓库](https://github.com/ThomasAtlantis/C99_MNIST)。本文设计的模型用于处理经典的手写数字识别问题，使用很工整的MNIST数据集，只是为了理论验证。之前我在学习CNN的过程中也使用PyTorch搭建过Python版本的，在[这里](https://github.com/ThomasAtlantis/NER/tree/master/learningResources/Case/HandwrittenDigitRecognition)。
 
