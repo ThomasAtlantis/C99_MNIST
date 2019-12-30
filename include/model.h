@@ -152,10 +152,10 @@ void back_fcIn2pool(FCLayer * fcInput, CVLayer * pool) {
  */
 void back_pool2conv(CVLayer * pool, CVLayer * conv) {
     for (int k = 0; k < conv->H; ++ k) {
-        for (int i = 0; i < conv->L; i += 2) {
-            for (int j = 0; j < conv->W; j += 2) {
+        for (int i = 0; i < conv->L; ++ i) {
+            for (int j = 0; j < conv->W; ++ j) {
                 // 如果输入输出之差的绝对值小于0.001，认为该位置时max，传递delta；否则delta为0，不更新参数
-                if (fabs(conv->values[k][i][j] - pool->values[k][i / 2][j / 2]) < 0.001)
+                if (fabs(conv->values[k][i][j] - pool->values[k][i / 2][j / 2]) == 0)
                     conv->deltas[k][i][j] = pool->deltas[k][i / 2][j / 2];
                 else conv->deltas[k][i][j] = 0;
             }
@@ -192,7 +192,7 @@ _type convMatrix(CVLayer * input, CVLayer * conv, int k, int x, int y, int index
  */
 void UpdateFilter(CVLayer * filter[], CVLayer * input, CVLayer * conv, double alpha) {
     for (int index = 0; index < filter_num; ++ index) {
-        filter[index]->bias -= alpha * sumMatrix(conv, index);
+//        filter[index]->bias -= alpha * sumMatrix(conv, index);
         for (int k = 0; k < filter[index]->H; ++ k)
             for (int i = 0; i < filter[index]->L; ++ i)
                 for (int j = 0; j < filter[index]->W; ++ j)

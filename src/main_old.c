@@ -187,7 +187,7 @@ _type sum1(CVLayer * A, CVLayer * B, int x, int y, int z) {
 }
 
 void Update(CVLayer * A, CVLayer * B, CVLayer * C, int z, double alpha) {
-    B->bias -= alpha * sum(C, z);
+    A->bias -= alpha * sum(C, z);
     for (int k = 0; k < A->H; ++ k) {
         for (int i = 0; i < A->L; ++ i) {
             for (int j = 0; j < A->W; ++ j) {
@@ -220,7 +220,7 @@ void backPropagation(Network * CNN, int step, Alpha * alpha, int label) {
         CNN->fc_input->deltas[i] = 0;
         for (int j = 0; j < class_num; ++ j) {
             CNN->fc_input->deltas[i] += CNN->fc_input->values[i] * (1.0 - CNN->fc_input->values[i])
-                * CNN->fc_weight->weights[j][i] * CNN->fc_output->deltas[j];
+                                        * CNN->fc_weight->weights[j][i] * CNN->fc_output->deltas[j];
         }
     }
     for (int i = 0; i < CNN->fc_input->L; ++ i) {
