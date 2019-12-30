@@ -4,9 +4,9 @@
 #include "../include/network.h"
 #include "../include/model.h"
 
-const int train_num = 20000; // 训练样本数
-const int test_num  = 4000; // 测试样本数
-const int epoch_num = 200; // 训练轮数
+const int train_num = 200; // 训练样本数
+const int test_num  = 40; // 测试样本数
+const int epoch_num = 10; // 训练轮数
 
 Vector1D labels_train;
 Vector2D images_train;

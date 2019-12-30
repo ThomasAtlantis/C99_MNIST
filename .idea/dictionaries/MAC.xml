@@ -4,6 +4,7 @@
       <w>conv</w>
       <w>convol</w>
       <w>convolutional</w>
+      <w>dataio</w>
       <w>mnist</w>
       <w>softmax</w>
     </words>

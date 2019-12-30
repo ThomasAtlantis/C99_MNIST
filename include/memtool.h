@@ -7,7 +7,7 @@
 
 #include "../include/mytype.h"
 
-#define delete_p(x) (x)->destroy(x)
+#define delete_p(x) do{(x)->destroy(x);free_p(x);}while(0)
 #define delete(x) (x).destroy(&(x))
 #define free_p(x) do{free(x);(x)=NULL;}while(0)
 

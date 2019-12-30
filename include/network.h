@@ -66,7 +66,6 @@ typedef struct CVLayer {
 void killCVLayer(CVLayer * this) {
     free3D(this->values, this->H, this->L);
     free3D(this->deltas, this->H, this->L);
-    free_p(this);
 }
 
 /**
@@ -78,7 +77,7 @@ void killCVLayer(CVLayer * this) {
  */
 CVLayer * Convol2D_(int h, int l, int w) {
     CVLayer * layer = (CVLayer *)malloc(sizeof(CVLayer));
-    layer->destroy = killCVLayer;
+    layer->destroy = killCVLayer; layer->bias = 0;
     layer->L = l; layer->W = w; layer->H = h;
     layer->values = (_type ***)malloc(h * sizeof(_type **));
     layer->deltas = (_type ***)malloc(h * sizeof(_type **));
@@ -89,7 +88,7 @@ CVLayer * Convol2D_(int h, int l, int w) {
             layer->values[k][i] = (_type *) malloc(w * sizeof(_type));
             layer->deltas[k][i] = (_type *) malloc(w * sizeof(_type));
             for (int j = 0; j < w; ++ j) {
-                layer->values[k][i][j] = 0.01 * (rand() % 100);
+                layer->values[k][i][j] = GaussRand(0.5, 0.1);
             }
         }
     }
@@ -106,7 +105,7 @@ CVLayer * Filter2D_(int h, int l, int w) {
         for (int i = 0; i < l; ++ i) {
             layer->values[k][i] = (_type *) malloc(w * sizeof(_type));
             for (int j = 0; j < w; ++ j) {
-                layer->values[k][i][j] = 0.01 * (rand() % 100);
+                layer->values[k][i][j] = GaussRand(0.5, 0.1);
             }
         }
     }
@@ -128,7 +127,6 @@ void killFCLayer(FCLayer * this) {
     free1D(this->bias);
     free1D(this->values);
     free1D(this->deltas);
-    free_p(this);
 }
 
 FCLayer * FCLayer_(int length) {
@@ -148,8 +146,9 @@ FCLayer * FCWeight_(int from, int to) {
     layer->weights = (_type **)malloc(to * sizeof(_type));
     for (int i = 0; i < to; ++ i) {
         layer->weights[i] = (_type *)malloc(from * sizeof(_type));
+        layer->bias[i] = 0.01 * (rand() % 100);
         for (int j = 0; j < from; ++ j) {
-            layer->weights[i][j] = GaussRand(0, 0.1);
+            layer->weights[i][j] = GaussRand(0.5, 0.1);
         }
     }
     layer->values = layer->deltas = NULL;
@@ -163,7 +162,7 @@ void softmax(FCLayer * A) {
         maxi = _max(maxi, A->values[i]);
     }
     for (int i = 0; i < A->L; ++ i) {
-        A->values[i] = exp(A->values[i] - maxi);
+        A->values[i] = exp(A->values[i]);
         sum += A->values[i];
     }
     for (int i = 0; i < A->L; ++ i) {

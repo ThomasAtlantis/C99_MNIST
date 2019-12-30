@@ -42,10 +42,10 @@ Network * Network_() {
     Network * CNN = (Network *)malloc(sizeof(Network));
     CNN->destroy = killNetwork;
     CNN->input_layer = Convol2D_(1, 28, 28);
-    CNN->conv_layer = Convol2D_(5, 24, 24);
-    CNN->pool_layer = Convol2D_(5, 12, 12);
     for (int i = 0; i < filter_num; ++ i)
         CNN->filter[i] = Filter2D_(1, 5, 5);
+    CNN->conv_layer = Convol2D_(5, 24, 24);
+    CNN->pool_layer = Convol2D_(5, 12, 12);
     CNN->fc_input = FCLayer_(720);
     CNN->fc_weight = FCWeight_(720, 10);
     CNN->fc_output = FCLayer_(10);
@@ -175,11 +175,11 @@ _type sumMatrix(CVLayer * conv, int index) {
 }
 
 // 其实这里就是input->values * conv->delta卷积的结果
-_type convMatrix(CVLayer * input, CVLayer * conv, int x, int y, int index) {
+_type convMatrix(CVLayer * input, CVLayer * conv, int k, int x, int y, int index) {
     _type a = 0;
     for (int i = 0; i < conv->L; ++ i)
         for (int j = 0; j < conv->W; ++ j)
-            a += conv->deltas[index][i][j] * input->values[0][i + x][j + y];
+            a += conv->deltas[index][i][j] * input->values[k][i + x][j + y];
     return a;
 }
 
@@ -190,15 +190,13 @@ _type convMatrix(CVLayer * input, CVLayer * conv, int x, int y, int index) {
  * @param conv   卷积层
  * @param index  卷积核序号
  */
-void UpdateFilter(int index, CVLayer * filter, CVLayer * input, CVLayer * conv, double alpha) {
-    _type sum = sumMatrix(conv, index);
-    for (int k = 0; k < filter->H; ++ k) {
-        for (int i = 0; i < filter->L; ++ i) {
-            for (int j = 0; j < filter->W; ++ j) {
-                filter->values[k][i][j] -= alpha * convMatrix(input, conv, i, j, index);
-                filter->bias -= alpha * sum;
-            }
-        }
+void UpdateFilter(CVLayer * filter[], CVLayer * input, CVLayer * conv, double alpha) {
+    for (int index = 0; index < filter_num; ++ index) {
+        filter[index]->bias -= alpha * sumMatrix(conv, index);
+        for (int k = 0; k < filter[index]->H; ++ k)
+            for (int i = 0; i < filter[index]->L; ++ i)
+                for (int j = 0; j < filter[index]->W; ++ j)
+                    filter[index]->values[k][i][j] -= alpha * convMatrix(input, conv, k, i, j, index);
     }
 }
 
@@ -229,8 +227,7 @@ void backPropagation(Network * CNN, int step, Alpha * alpha, int label) {
     }
     back_fcIn2pool(CNN->fc_input, CNN->pool_layer);
     back_pool2conv(CNN->pool_layer, CNN->conv_layer);
-    for (int index = 0; index < filter_num; ++ index)
-        UpdateFilter(index, CNN->filter[index], CNN->input_layer, CNN->conv_layer, expDecayLR(alpha, step));
+    UpdateFilter(CNN->filter, CNN->input_layer, CNN->conv_layer, expDecayLR(alpha, step));
 }
 
 /**
