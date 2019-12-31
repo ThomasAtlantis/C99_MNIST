@@ -217,7 +217,7 @@ _type convMatrix(CVLayer * input, CVLayer * conv, int k, int x, int y, int index
  */
 void UpdateFilter(CVLayer * filter[], CVLayer * input, CVLayer * conv, double alpha) {
     for (int index = 0; index < filter_num; ++ index) {
-//        filter[index]->bias -= alpha * sumMatrix(conv, index);
+        filter[index]->bias -= alpha * sumMatrix(conv, index);
         for (int k = 0; k < filter[index]->H; ++ k)
             for (int i = 0; i < filter[index]->L; ++ i)
                 for (int j = 0; j < filter[index]->W; ++ j)
@@ -232,11 +232,7 @@ void UpdateFilter(CVLayer * filter[], CVLayer * input, CVLayer * conv, double al
  * @param alpha 学习率参数
  * @param label Ground Truth标签
  */
-void backPropagation(Network * CNN, int step, Alpha * alpha, int label) {
-    for (int i = 0; i < class_num; ++ i) {
-        CNN->fc_output->deltas[i] = CNN->fc_output->values[i];
-        if (i == label) CNN->fc_output->deltas[i] -= 1.0;
-    }
+void backPropagation(Network * CNN, int step, Alpha * alpha) {
     for (int i = 0; i < CNN->fc_input->L; ++ i) {
         CNN->fc_input->deltas[i] = 0;
         for (int j = 0; j < class_num; ++ j) {

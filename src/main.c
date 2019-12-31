@@ -11,9 +11,10 @@
     return 0; \
 }while(0)
 
-int train_num = 3000; // 训练样本数
-int test_num  = 400; // 测试样本数
+int train_num = 6000; // 训练样本数
+int test_num  = 600; // 测试样本数
 int epoch_num = 300; // 训练轮数
+int batch_size = 1;
 
 Vector1D labels_train;
 Vector2D images_train;
@@ -45,10 +46,20 @@ void train(Network * CNN, Alpha * alpha, const char * fileName) {
     printf("Begin Training ...\n");
     for (int step = 0; step < epoch_num; ++ step) {
         _type err = 0;
-        for (int i = 0; i < train_num; i ++) {
-            forePropagation(CNN, i, images_train);
-            err -= log(CNN->fc_output->values[(int)labels_train.data[i]]);
-            backPropagation(CNN, step, alpha, (int)labels_train.data[i]);
+        for (int i = 0; i < train_num / batch_size; i ++) {
+            for (int k = 0; k < class_num; ++ k)
+                CNN->fc_output->deltas[k] = 0;
+            for (int j = 0; j < batch_size; ++ j) {
+                forePropagation(CNN, i * batch_size + j, images_train);
+                int label = (int)labels_train.data[i * batch_size + j];
+                for (int k = 0; k < class_num; ++ k)
+                    CNN->fc_output->deltas[k] += CNN->fc_output->values[k];
+                CNN->fc_output->deltas[label] -= 1.0;
+                err -= log(CNN->fc_output->values[label]);
+            }
+            for (int k = 0; k < class_num; ++ k)
+                CNN->fc_output->deltas[k] /= batch_size;
+            backPropagation(CNN, step, alpha);
         }
         new_score = test(CNN);
         printf("step: %3d loss: %.5f prec: %.5f\n",
@@ -102,7 +113,7 @@ int main(int argc, char * argv[]) {
             images_test.data[i][j] /= 255.0;
 
     // 训练
-    train(CNN, alpha, "model.sav");
+    train(CNN, alpha, "../model.sav");
 
     // 释放内存
     delete_p(CNN);

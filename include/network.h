@@ -129,7 +129,7 @@ CVLayer * Convol2D_(int h, int l, int w) {
 
 CVLayer * Filter2D_(int h, int l, int w) {
     CVLayer * layer = (CVLayer *)malloc(sizeof(CVLayer));
-    layer->destroy = killCVLayer; layer->bias = GaussRand(2.75, 0.2);
+    layer->destroy = killCVLayer; layer->bias = GaussRand(0.1, 0.2);
     layer->L = l; layer->W = w; layer->H = h; layer->deltas = NULL;
     layer->values = (_type ***)malloc(h * sizeof(_type **));
     for (int k = 0; k < h; ++ k) {
