@@ -46,7 +46,8 @@ void train(Network * CNN, Alpha * alpha, const char * fileName) {
     printf("Begin Training ...\n");
     for (int step = 0; step < epoch_num; ++ step) {
         _type err = 0;
-        for (int i = 0; i < train_num / batch_size; i ++) {
+        for (int m = 0; m < train_num / batch_size; m ++) {
+            int i = rand() % (train_num / batch_size);
             for (int k = 0; k < class_num; ++ k)
                 CNN->fc_output->deltas[k] = 0;
             for (int j = 0; j < batch_size; ++ j) {

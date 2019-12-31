@@ -31,7 +31,6 @@ typedef struct CVLayer {
 
 CVLayer * loadFilter(FILE * fp) {
     CVLayer * layer = (CVLayer *)malloc(sizeof(CVLayer));
-    layer->bias = 0;
     fread((char *)&layer->H, sizeof(int), 1, fp);
     fread((char *)&layer->L, sizeof(int), 1, fp);
     fread((char *)&layer->W, sizeof(int), 1, fp);
@@ -99,23 +98,25 @@ typedef struct Network {
     CVLayer * input_layer;
     CVLayer * filter[filter_num];
     CVLayer * conv_layer;
-    #define ConvActivate ReLU
     CVLayer * pool_layer;
-    #define poolActivate sigmoid
     FCLayer * fc_input;
     FCLayer * fc_weight;
     FCLayer * fc_output;
 } Network;
 
 Network * CNN;
+int fact;
 
 void loadNetwork() {
-    FILE * fp = fopen("../model.sav", "rb");
+    FILE * fp = fopen("../model-20191231-8975.sav", "rb");
+    FILE * fp_1 = fopen("../image.mem", "rb");
     CNN = (Network *)malloc(sizeof(Network));
     CNN->input_layer = Convol2D_(1, 28, 28);
     for (int i = 0; i < 28; ++ i)
         for (int j = 0; j < 28; ++ j)
-            fread((char *) &CNN->input_layer->values[0][i][j], sizeof(_type), 1, fp);
+            fread((char *) &CNN->input_layer->values[0][i][j],
+                sizeof(_type), 1, fp_1);
+    fread((char *)&fact, sizeof(int), 1, fp_1);
     for (int i = 0; i < filter_num; ++ i)
         CNN->filter[i] = loadFilter(fp);
     CNN->conv_layer = Convol2D_(5, 24, 24);
@@ -124,6 +125,7 @@ void loadNetwork() {
     CNN->fc_weight = loadFCWeight(fp);
     CNN->fc_output = FCLayer_(10);
     fclose(fp);
+    fclose(fp_1);
 }
 
 void conv(CVLayer * input, CVLayer * filter[], CVLayer * conv) {
@@ -135,7 +137,7 @@ void conv(CVLayer * input, CVLayer * filter[], CVLayer * conv) {
                     for (int a = 0; a < filter[0]->L; ++ a)
                         for (int b = 0; b < filter[0]->W; ++ b)
                             conv->values[p][i][j] += input->values[k][i + a][j + b] * filter[p]->values[k][a][b];
-                conv->values[p][i][j] = ConvActivate(conv->values[p][i][j] + filter[p]->bias);
+                conv->values[p][i][j] = ReLU(conv->values[p][i][j] + filter[p]->bias);
             }
         }
     }
@@ -156,7 +158,7 @@ void FCInput(CVLayer * pool, FCLayer * fcInput) {
     for (int k = 0; k < pool->H; ++ k)
         for (int i = 0; i < pool->L; ++ i)
             for (int j = 0; j < pool->W; ++ j)
-                fcInput->values[x ++] = poolActivate(pool->values[k][i][j]);
+                fcInput->values[x ++] = sigmoid(pool->values[k][i][j]);
 }
 
 void FCMultiply(FCLayer * input, FCLayer * weight, FCLayer * output) {
@@ -189,6 +191,6 @@ int predict() {
 
 int main() {
     loadNetwork();
-    predict();
+    printf("Ground Truth: %d, Predicted: %d", fact, predict());
     return 0;
 }
