@@ -74,6 +74,7 @@ int saveFilter(FILE * fp, CVLayer * layer) {
     fwrite((char *)&layer->H, sizeof(int), 1, fp);
     fwrite((char *)&layer->L, sizeof(int), 1, fp);
     fwrite((char *)&layer->W, sizeof(int), 1, fp);
+    fwrite((char *)&layer->bias, sizeof(_type), 1, fp);
     for (int k = 0; k < layer->H; ++ k)
         for (int i = 0; i < layer->L; ++ i)
             fwrite((char *)layer->values[k][i], sizeof(_type), layer->W, fp);
@@ -82,10 +83,11 @@ int saveFilter(FILE * fp, CVLayer * layer) {
 
 CVLayer * loadFilter(FILE * fp) {
     CVLayer * layer = (CVLayer *)malloc(sizeof(CVLayer));
-    layer->destroy = killCVLayer; layer->bias = 0;
+    layer->destroy = killCVLayer;
     _ = fread((char *)&layer->H, sizeof(int), 1, fp);
     _ = fread((char *)&layer->L, sizeof(int), 1, fp);
     _ = fread((char *)&layer->W, sizeof(int), 1, fp);
+    _ = fread((char *)&layer->bias, sizeof(_type), 1, fp);
     layer->deltas = NULL;
     layer->values = (_type ***)malloc(layer->H * sizeof(_type **));
     for (int k = 0; k < layer->H; ++ k) {
@@ -127,7 +129,7 @@ CVLayer * Convol2D_(int h, int l, int w) {
 
 CVLayer * Filter2D_(int h, int l, int w) {
     CVLayer * layer = (CVLayer *)malloc(sizeof(CVLayer));
-    layer->destroy = killCVLayer; layer->bias = 0;
+    layer->destroy = killCVLayer; layer->bias = GaussRand(2.75, 0.2);
     layer->L = l; layer->W = w; layer->H = h; layer->deltas = NULL;
     layer->values = (_type ***)malloc(h * sizeof(_type **));
     for (int k = 0; k < h; ++ k) {

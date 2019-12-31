@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 #include "../include/vector.h"
 #include "../include/dataio.h"
 #include "../include/network.h"
@@ -10,9 +11,9 @@
     return 0; \
 }while(0)
 
-int train_num = 20000; // 训练样本数
-int test_num  = 4000; // 测试样本数
-int epoch_num = 10; // 训练轮数
+int train_num = 3000; // 训练样本数
+int test_num  = 400; // 测试样本数
+int epoch_num = 300; // 训练轮数
 
 Vector1D labels_train;
 Vector2D images_train;
@@ -62,6 +63,8 @@ void train(Network * CNN, Alpha * alpha, const char * fileName) {
 
 int main(int argc, char * argv[]) {
 
+    srand((unsigned)time(NULL));
+
     for (int i = 1; i < argc; ++ i) {
         if (!strcmp(argv[i], "--epoch")
             || !strcmp(argv[i], "--test_num")
@@ -79,7 +82,7 @@ int main(int argc, char * argv[]) {
     }
 
     // 初始化学习率
-    Alpha * alpha = ExpDecayLR(0.1, 200, 0.01);
+    Alpha * alpha = ExpDecayLR(0.03, 100, 0.003);
 
     // 初始化CNN存储结构
     Network * CNN = Network_();
